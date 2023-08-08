@@ -2,6 +2,18 @@
 version: v1
 deps:
   - remote: buf.build
-    owner: evmos
-    repository: evmos
-    commit: ed3b422c3b484804b054a02f82a39603
+    owner: cosmos
+    repository: cosmos-proto
+    commit: 1935555c206d4afb9e94615dfd0fad31
+  - remote: buf.build
+    owner: cosmos
+    repository: cosmos-sdk
+    commit: d0536f4cfdc948e49ed0ec7bf049576f
+  - remote: buf.build
+    owner: cosmos
+    repository: gogo-proto
+    commit: 5e5b9fdd01804356895f8f79a6f1ddc1
+  - remote: buf.build
+    owner: googleapis
+    repository: googleapis
+    commit: 711e289f6a384c4caeebaff7c6931ade
