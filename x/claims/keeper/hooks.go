@@ -5,8 +5,8 @@ import (
 	capabilitytypes "github.com/cosmos/cosmos-sdk/x/capability/types"
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
-	transfertypes "github.com/cosmos/ibc-go/v3/modules/apps/transfer/types"
-	"github.com/cosmos/ibc-go/v3/modules/core/exported"
+	transfertypes "github.com/cosmos/ibc-go/v4/modules/apps/transfer/types"
+	"github.com/cosmos/ibc-go/v4/modules/core/exported"
 
 	"github.com/ethereum/go-ethereum/core"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
@@ -173,4 +173,9 @@ func (k Keeper) SendPacket(ctx sdk.Context, channelCap *capabilitytypes.Capabili
 // It calls the underlying WriteAcknowledgement function directly to move down the middleware stack.
 func (k Keeper) WriteAcknowledgement(ctx sdk.Context, channelCap *capabilitytypes.Capability, packet exported.PacketI, ack exported.Acknowledgement) error {
 	return k.ics4Wrapper.WriteAcknowledgement(ctx, channelCap, packet, ack)
+}
+
+// GetAppVersion returns the underlying application version.
+func (k Keeper) GetAppVersion(ctx sdk.Context, portID, channelID string) (string, bool) {
+	return k.ics4Wrapper.GetAppVersion(ctx, portID, channelID)
 }

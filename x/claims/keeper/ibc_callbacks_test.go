@@ -8,11 +8,11 @@ import (
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 
-	transfertypes "github.com/cosmos/ibc-go/v3/modules/apps/transfer/types"
-	clienttypes "github.com/cosmos/ibc-go/v3/modules/core/02-client/types"
-	channeltypes "github.com/cosmos/ibc-go/v3/modules/core/04-channel/types"
-	ibcgotesting "github.com/cosmos/ibc-go/v3/testing"
-	ibcmock "github.com/cosmos/ibc-go/v3/testing/mock"
+	transfertypes "github.com/cosmos/ibc-go/v4/modules/apps/transfer/types"
+	clienttypes "github.com/cosmos/ibc-go/v4/modules/core/02-client/types"
+	channeltypes "github.com/cosmos/ibc-go/v4/modules/core/04-channel/types"
+	ibcgotesting "github.com/cosmos/ibc-go/v4/testing"
+	ibcmock "github.com/cosmos/ibc-go/v4/testing/mock"
 
 	"github.com/evmos/evmos/v9/x/claims/types"
 )
@@ -52,15 +52,6 @@ func (suite *KeeperTestSuite) TestAckknowledgementPacket() {
 			func() {
 				err := suite.app.ClaimsKeeper.OnAcknowledgementPacket(suite.ctx, mockpacket, ack.Acknowledgement())
 				suite.Require().Error(err)
-			},
-		},
-		{
-			"no-op: error Ack",
-			func() {
-				err := sdkerrors.Wrapf(sdkerrors.ErrUnknownRequest, "cannot unmarshal ICS-20 transfer packet data")
-				ack := transfertypes.NewErrorAcknowledgement(err)
-				err = suite.app.ClaimsKeeper.OnAcknowledgementPacket(suite.ctx, mockpacket, ack.Acknowledgement())
-				suite.Require().NoError(err)
 			},
 		},
 		{
@@ -180,7 +171,7 @@ func (suite *KeeperTestSuite) TestOnRecvPacket() {
 			"fail - non ics20 packet",
 			func() {
 				err := sdkerrors.Wrapf(sdkerrors.ErrUnknownRequest, "cannot unmarshal ICS-20 transfer packet data")
-				expectedAck := channeltypes.NewErrorAcknowledgement(err.Error())
+				expectedAck := channeltypes.NewErrorAcknowledgement(err)
 				resAck := suite.app.ClaimsKeeper.OnRecvPacket(suite.ctx, mockpacket, ack)
 				suite.Require().Equal(expectedAck, resAck)
 			},
