@@ -445,68 +445,109 @@ format:
 ###                                Protobuf                                 ###
 ###############################################################################
 
-containerProtoVer=v0.2
-containerProtoImage=tendermintdev/sdk-proto-gen:$(containerProtoVer)
-containerProtoGen=cosmos-sdk-proto-gen-$(containerProtoVer)
-containerProtoGenSwagger=cosmos-sdk-proto-gen-swagger-$(containerProtoVer)
-containerProtoFmt=cosmos-sdk-proto-fmt-$(containerProtoVer)
+# ------
+# NOTE: Link to the tendermintdev/sdk-proto-gen docker images:
+#       https://hub.docker.com/r/tendermintdev/sdk-proto-gen/tags
+#
+protoVer=v0.7
+protoImageName=tendermintdev/sdk-proto-gen:$(protoVer)
+protoImage=$(DOCKER) run --network host --rm -v $(CURDIR):/workspace --workdir /workspace $(protoImageName)
+# ------
+# NOTE: cosmos/proto-builder image is needed because clang-format is not installed
+#       on the tendermintdev/sdk-proto-gen docker image.
+#		Link to the cosmos/proto-builder docker images:
+#       https://github.com/cosmos/cosmos-sdk/pkgs/container/proto-builder
+#
+protoCosmosVer=0.11.2
+protoCosmosName=ghcr.io/cosmos/proto-builder:$(protoCosmosVer)
+protoCosmosImage=$(DOCKER) run --network host --rm -v $(CURDIR):/workspace --workdir /workspace $(protoCosmosName)
+# ------
+# NOTE: Link to the yoheimuta/protolint docker images:
+#       https://hub.docker.com/r/yoheimuta/protolint/tags
+#
+protolintVer=0.42.2
+protolintName=yoheimuta/protolint:$(protolintVer)
+protolintImage=$(DOCKER) run --network host --rm -v $(CURDIR):/workspace --workdir /workspace $(protolintName)
 
+
+# ------
+# NOTE: If you are experiencing problems running these commands, try deleting
+#       the docker images and execute the desired command again.
+#
 proto-all: proto-format proto-lint proto-gen
 
 proto-gen:
 	@echo "Generating Protobuf files"
-	$(DOCKER) run --rm -v $(CURDIR):/workspace --workdir /workspace tendermintdev/sdk-proto-gen sh ./scripts/protocgen.sh
+	$(protoImage) sh ./scripts/protocgen.sh
+
+proto-swagger-gen:
+	@echo "Downloading Protobuf dependencies"
+	@make proto-download-deps
+	@echo "Generating Protobuf Swagger"
+	$(protoCosmosImage) sh ./scripts/protoc-swagger-gen.sh
 
 proto-format:
 	@echo "Formatting Protobuf files"
-	find ./ -not -path "./third_party/*" -name *.proto -exec clang-format -i {} \;
+	$(protoCosmosImage) find ./ -name *.proto -exec clang-format -i {} \;
 
+# NOTE: The linter configuration lives in .protolint.yaml
 proto-lint:
-	@$(DOCKER_BUF) lint --error-format=json
+	@echo "Linting Protobuf files"
+	$(protolintImage) lint ./proto
 
 proto-check-breaking:
-	@$(DOCKER_BUF) breaking --against $(HTTPS_GIT)#branch=main
+	@echo "Checking Protobuf files for breaking changes"
+	$(protoImage) buf breaking --against $(HTTPS_GIT)#branch=main
+
+SWAGGER_DIR=./swagger-proto
+THIRD_PARTY_DIR=$(SWAGGER_DIR)/third_party
+
+proto-download-deps:
+	mkdir -p "$(THIRD_PARTY_DIR)/cosmos_tmp" && \
+	cd "$(THIRD_PARTY_DIR)/cosmos_tmp" && \
+	git init && \
+	git remote add origin "https://github.com/cosmos/cosmos-sdk.git" && \
+	git config core.sparseCheckout true && \
+	printf "proto\nthird_party\n" > .git/info/sparse-checkout && \
+	git pull origin main && \
+	rm -f ./proto/buf.* && \
+	mv ./proto/* ..
+	rm -rf "$(THIRD_PARTY_DIR)/cosmos_tmp"
+
+	mkdir -p "$(THIRD_PARTY_DIR)/ibc_tmp" && \
+	cd "$(THIRD_PARTY_DIR)/ibc_tmp" && \
+	git init && \
+	git remote add origin "https://github.com/cosmos/ibc-go.git" && \
+	git config core.sparseCheckout true && \
+	printf "proto\n" > .git/info/sparse-checkout && \
+	git pull origin main && \
+	rm -f ./proto/buf.* && \
+	mv ./proto/* ..
+	rm -rf "$(THIRD_PARTY_DIR)/ibc_tmp"
+
+	mkdir -p "$(THIRD_PARTY_DIR)/cosmos_proto_tmp" && \
+	cd "$(THIRD_PARTY_DIR)/cosmos_proto_tmp" && \
+	git init && \
+	git remote add origin "https://github.com/cosmos/cosmos-proto.git" && \
+	git config core.sparseCheckout true && \
+	printf "proto\n" > .git/info/sparse-checkout && \
+	git pull origin main && \
+	rm -f ./proto/buf.* && \
+	mv ./proto/* ..
+	rm -rf "$(THIRD_PARTY_DIR)/cosmos_proto_tmp"
+
+	mkdir -p "$(THIRD_PARTY_DIR)/gogoproto" && \
+	curl -SSL https://raw.githubusercontent.com/cosmos/gogoproto/main/gogoproto/gogo.proto > "$(THIRD_PARTY_DIR)/gogoproto/gogo.proto"
+
+	mkdir -p "$(THIRD_PARTY_DIR)/google/api" && \
+	curl -sSL https://raw.githubusercontent.com/googleapis/googleapis/master/google/api/annotations.proto > "$(THIRD_PARTY_DIR)/google/api/annotations.proto"
+	curl -sSL https://raw.githubusercontent.com/googleapis/googleapis/master/google/api/http.proto > "$(THIRD_PARTY_DIR)/google/api/http.proto"
+
+	mkdir -p "$(THIRD_PARTY_DIR)/cosmos/ics23/v1" && \
+	curl -sSL https://raw.githubusercontent.com/cosmos/ics23/master/proto/cosmos/ics23/v1/proofs.proto > "$(THIRD_PARTY_DIR)/cosmos/ics23/v1/proofs.proto"
 
 
-TM_URL              = https://raw.githubusercontent.com/tendermint/tendermint/v0.34.15/proto/tendermint
-GOGO_PROTO_URL      = https://raw.githubusercontent.com/regen-network/protobuf/cosmos
-COSMOS_SDK_URL      = https://raw.githubusercontent.com/cosmos/cosmos-sdk/v0.45.1
-ETHERMINT_URL      	= https://raw.githubusercontent.com/tharsis/ethermint/v0.10.0
-IBC_GO_URL      		= https://raw.githubusercontent.com/cosmos/ibc-go/v3.0.0-rc0
-COSMOS_PROTO_URL    = https://raw.githubusercontent.com/regen-network/cosmos-proto/master
-
-TM_CRYPTO_TYPES     = third_party/proto/tendermint/crypto
-TM_ABCI_TYPES       = third_party/proto/tendermint/abci
-TM_TYPES            = third_party/proto/tendermint/types
-
-GOGO_PROTO_TYPES    = third_party/proto/gogoproto
-
-COSMOS_PROTO_TYPES  = third_party/proto/cosmos_proto
-
-proto-update-deps:
-	@mkdir -p $(GOGO_PROTO_TYPES)
-	@curl -sSL $(GOGO_PROTO_URL)/gogoproto/gogo.proto > $(GOGO_PROTO_TYPES)/gogo.proto
-
-	@mkdir -p $(COSMOS_PROTO_TYPES)
-	@curl -sSL $(COSMOS_PROTO_URL)/cosmos.proto > $(COSMOS_PROTO_TYPES)/cosmos.proto
-
-## Importing of tendermint protobuf definitions currently requires the
-## use of `sed` in order to build properly with cosmos-sdk's proto file layout
-## (which is the standard Buf.build FILE_LAYOUT)
-## Issue link: https://github.com/tendermint/tendermint/issues/5021
-	@mkdir -p $(TM_ABCI_TYPES)
-	@curl -sSL $(TM_URL)/abci/types.proto > $(TM_ABCI_TYPES)/types.proto
-
-	@mkdir -p $(TM_TYPES)
-	@curl -sSL $(TM_URL)/types/types.proto > $(TM_TYPES)/types.proto
-
-	@mkdir -p $(TM_CRYPTO_TYPES)
-	@curl -sSL $(TM_URL)/crypto/proof.proto > $(TM_CRYPTO_TYPES)/proof.proto
-	@curl -sSL $(TM_URL)/crypto/keys.proto > $(TM_CRYPTO_TYPES)/keys.proto
-
-
-
-.PHONY: proto-all proto-gen proto-gen-any proto-swagger-gen proto-format proto-lint proto-check-breaking proto-update-deps
+.PHONY: proto-all proto-gen proto-format proto-lint proto-check-breaking proto-swagger-gen
 
 ###############################################################################
 ###                                Localnet                                 ###
